@@ -1,0 +1,14 @@
+name = "LeanFpAnalysis"
+version = "0.1.0"
+defaultTargets = ["leanfpanalysis"]
+
+[[lean_lib]]
+name = "LeanFpAnalysis"
+
+[[lean_exe]]
+name = "leanfpanalysis"
+root = "Main"
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
