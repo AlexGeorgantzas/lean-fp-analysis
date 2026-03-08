@@ -1,6 +1,6 @@
 name = "LeanFpAnalysis"
 version = "0.1.0"
-defaultTargets = ["leanfpanalysis"]
+defaultTargets = ["LeanFpAnalysis"]
 
 [[lean_lib]]
 name = "LeanFpAnalysis"

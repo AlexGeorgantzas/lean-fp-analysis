@@ -1,4 +1,4 @@
 import LeanFpAnalysis
 
 def main : IO Unit :=
-  IO.println s!"Hello, {hello}!"
+  IO.println "LeanFpAnalysis: floating-point error analysis library."

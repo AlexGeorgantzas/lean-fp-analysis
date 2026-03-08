@@ -1,32 +1,11 @@
--- Error.lean
+-- Rounding.lean
 
-import Mathlib
+import Mathlib.Data.Real.Basic
+import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+import Mathlib.Algebra.BigOperators.Fin
 import LeanFpAnalysis.FP.Model
 
 namespace LeanFpAnalysis.FP
-
-/-!
-# Floating-Point Error Definitions
-
-Following Higham, "Accuracy and Stability of Numerical Algorithms", Ch. 1.
-We define absolute error and relative error as the standard measures of
-floating-point approximation quality.
--/
-
--- ============================================================
--- §1.2  Error measures
--- ============================================================
-
-/-- Absolute error of a floating-point approximation.
-    Defined as |computed - exact|. No assumption on exact. -/
-def absError (computed exact : ℝ) : ℝ :=
-  |computed - exact|
-
-/-- Relative error of a floating-point approximation.
-    Defined as |computed - exact| / |exact|.
-    Meaningful only when `exact ≠ 0`; the caller must enforce this. -/
-noncomputable def relError (computed exact : ℝ) : ℝ :=
-  |computed - exact| / |exact|
 
 /-!
 # Accumulated Rounding Error Bound (γ)
@@ -66,20 +45,11 @@ noncomputable def gamma (fp : FPModel) (n : ℕ) : ℝ :=
 def gammaValid (fp : FPModel) (n : ℕ) : Prop :=
   (n : ℝ) * fp.u < 1
 
-/-!
-# Product Rounding Error Lemma
-
-This is the central engine of Higham-style forward error analysis (§3.1).
-
-Every stability bound for a concrete algorithm is derived by applying this
-lemma to the sequence of rounding errors introduced by its arithmetic
-operations.  Once this lemma is established, per-algorithm proofs become
-largely mechanical.
--/
-
 -- ============================================================
 -- §3.1  Product lemma
 -- ============================================================
+
+open scoped BigOperators
 
 /-- **Product rounding error lemma** (Higham §3.1, Lemma 3.1).
 
@@ -91,9 +61,12 @@ largely mechanical.
     any composition of n rounded operations accumulates a relative
     error bounded by γ(n), regardless of the signs of the individual δᵢ.
 
-    Proof strategy: induction on n, using the bound
-      (1 + γ(n))(1 + u) ≤ 1 + γ(n+1)
-    which holds under `gammaValid fp (n+1)`. -/
+    Proof sketch (induction on n):
+      Base: n = 0, product is 1, θ = 0, trivial.
+      Step: assume ∏ᵢ<n (1 + δᵢ) = 1 + θ' with |θ'| ≤ γ(n).
+        Then ∏ᵢ<n+1 (1 + δᵢ) = (1 + θ')(1 + δₙ) = 1 + (θ' + δₙ + θ'δₙ).
+        Set θ = θ' + δₙ + θ'δₙ, bound |θ| using
+          |θ| ≤ (γ(n) + u + γ(n)*u) = γ(n+1). -/
 lemma prod_error_bound (fp : FPModel) (n : ℕ) (δ : Fin n → ℝ)
     (hδ : ∀ i, |δ i| ≤ fp.u)
     (hn : gammaValid fp n) :

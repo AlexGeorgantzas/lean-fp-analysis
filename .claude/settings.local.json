@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lake build)",
+      "Bash(lake clean)",
+      "Bash(lake exe cache get)",
+      "Bash(lake build LeanFpAnalysis)"
+    ]
+  }
+}
