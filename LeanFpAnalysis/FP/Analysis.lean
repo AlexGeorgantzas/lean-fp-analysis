@@ -4,3 +4,4 @@
 import LeanFpAnalysis.FP.Analysis.Error
 import LeanFpAnalysis.FP.Analysis.Rounding
 import LeanFpAnalysis.FP.Analysis.Summation
+import LeanFpAnalysis.FP.Analysis.Stability

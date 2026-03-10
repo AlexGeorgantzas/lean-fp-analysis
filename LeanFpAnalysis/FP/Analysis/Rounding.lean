@@ -3,6 +3,9 @@
 import Mathlib.Data.Real.Basic
 import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 import Mathlib.Algebra.BigOperators.Fin
+import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.Ring
+import Mathlib.Tactic.FieldSimp
 import LeanFpAnalysis.FP.Model
 
 namespace LeanFpAnalysis.FP
@@ -59,19 +62,69 @@ open scoped BigOperators
 
     This is the foundational lemma for all forward error analysis:
     any composition of n rounded operations accumulates a relative
-    error bounded by γ(n), regardless of the signs of the individual δᵢ.
+    error bounded by γ(n), regardless of the signs of the individual δᵢ.-/
 
-    Proof sketch (induction on n):
-      Base: n = 0, product is 1, θ = 0, trivial.
-      Step: assume ∏ᵢ<n (1 + δᵢ) = 1 + θ' with |θ'| ≤ γ(n).
-        Then ∏ᵢ<n+1 (1 + δᵢ) = (1 + θ')(1 + δₙ) = 1 + (θ' + δₙ + θ'δₙ).
-        Set θ = θ' + δₙ + θ'δₙ, bound |θ| using
-          |θ| ≤ (γ(n) + u + γ(n)*u) = γ(n+1). -/
 lemma prod_error_bound (fp : FPModel) (n : ℕ) (δ : Fin n → ℝ)
     (hδ : ∀ i, |δ i| ≤ fp.u)
     (hn : gammaValid fp n) :
     ∃ θ : ℝ, |θ| ≤ gamma fp n ∧
       ∏ i : Fin n, (1 + δ i) = 1 + θ := by
-  sorry
+  induction n with
+  | zero => exact ⟨0, by simp [gamma], by simp⟩
+  | succ n ih =>
+    -- Predecessor validity: n*u < (n+1)*u < 1
+    have hnu : (n : ℝ) * fp.u < 1 := by
+      have h := hn; unfold gammaValid at h; push_cast at h
+      have : (↑n + 1) * fp.u = ↑n * fp.u + fp.u := by ring
+      linarith [fp.u_nonneg]
+    have hn_pred : gammaValid fp n := hnu
+    -- Apply IH to the first n components
+    obtain ⟨θ', hθ', hprod⟩ :=
+      ih (fun i => δ i.castSucc) (fun i => hδ i.castSucc) hn_pred
+    -- The new error: θ' from prefix + δₙ from last op + cross term
+    refine ⟨θ' + δ (Fin.last n) + θ' * δ (Fin.last n), ?_, ?_⟩
+    · have hδn   : |δ (Fin.last n)| ≤ fp.u := hδ (Fin.last n)
+      have hγn   : 0 ≤ gamma fp n :=
+        div_nonneg (mul_nonneg (by exact_mod_cast n.zero_le) fp.u_nonneg) (by linarith)
+      have hn1u  : ((n : ℝ) + 1) * fp.u < 1 := by
+        have h := hn; unfold gammaValid at h; push_cast at h; exact h
+      have hd_pos  : (0 : ℝ) < 1 - ↑n * fp.u       := by linarith
+      have hd1_pos : (0 : ℝ) < 1 - (↑n + 1) * fp.u := by linarith
+      -- Product bound: |θ' * δₙ| ≤ γ(n) * u
+      have hmul : |θ'| * |δ (Fin.last n)| ≤ gamma fp n * fp.u :=
+        mul_le_mul hθ' hδn (abs_nonneg _) hγn
+      have hcmul : |θ' * δ (Fin.last n)| ≤ gamma fp n * fp.u := abs_mul θ' _ ▸ hmul
+      -- Triangle inequality via abs_le (avoids case split on sign)
+      have h_tri : |θ' + δ (Fin.last n) + θ' * δ (Fin.last n)|
+          ≤ gamma fp n + fp.u + gamma fp n * fp.u := by
+        rw [abs_le]
+        constructor
+        · linarith [neg_abs_le θ', neg_abs_le (δ (Fin.last n)),
+                    neg_abs_le (θ' * δ (Fin.last n))]
+        · linarith [le_abs_self θ', le_abs_self (δ (Fin.last n)),
+                    le_abs_self (θ' * δ (Fin.last n))]
+      -- Algebraic identity: γ(n) + u + γ(n)·u = (n+1)·u / (1 - n·u)
+      have h_id : gamma fp n + fp.u + gamma fp n * fp.u =
+          (↑n + 1) * fp.u / (1 - ↑n * fp.u) := by
+        unfold gamma; field_simp [hd_pos.ne']; ring
+      -- Monotonicity: (n+1)·u / (1 - n·u) ≤ γ(n+1) since denominator shrinks
+      -- Proof: show γ(n+1) - (n+1)u/(1-nu) = (n+1)u² / ((1-nu)(1-(n+1)u)) ≥ 0
+      have h_le : (↑n + 1) * fp.u / (1 - ↑n * fp.u) ≤ gamma fp (n + 1) := by
+        unfold gamma; push_cast
+        have h0n : (0 : ℝ) ≤ ↑n := by exact_mod_cast n.zero_le
+        have ha : (0 : ℝ) ≤ (↑n + 1) * fp.u := by
+          have : (↑n + 1) * fp.u = ↑n * fp.u + fp.u := by ring
+          linarith [mul_nonneg h0n fp.u_nonneg, fp.u_nonneg]
+        rw [← sub_nonneg]
+        have key : (↑n + 1) * fp.u / (1 - (↑n + 1) * fp.u) -
+                   (↑n + 1) * fp.u / (1 - ↑n * fp.u) =
+                   (↑n + 1) * fp.u * fp.u /
+                   ((1 - ↑n * fp.u) * (1 - (↑n + 1) * fp.u)) := by
+          field_simp [hd_pos.ne', hd1_pos.ne']; ring
+        rw [key]
+        exact div_nonneg (mul_nonneg ha fp.u_nonneg) (le_of_lt (mul_pos hd_pos hd1_pos))
+      linarith
+    · -- ∏ᵢ<n+1 (1+δᵢ) = (∏ᵢ<n (1+δᵢ.castSucc)) * (1+δₙ) = (1+θ') * (1+δₙ)
+      rw [Fin.prod_univ_castSucc, hprod]; ring
 
 end LeanFpAnalysis.FP

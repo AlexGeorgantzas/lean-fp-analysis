@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip3 install --quiet pymupdf)",
+      "Bash(python3 -c \":*)"
+    ]
+  }
+}
